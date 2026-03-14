@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
 interface Billetera {
   id: string
@@ -28,6 +29,7 @@ const formatCOP = (valor: number) =>
   }).format(valor)
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [billeteras, setBilleteras] = useState<Billetera[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
   const [empresaNombre, setEmpresaNombre] = useState("")
@@ -37,7 +39,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const cargarDatos = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { window.location.href = "/"; return }
+      if (!user) { router.push("/"); return }
 
       const { data: perfil } = await supabase
         .from("perfiles")
@@ -45,7 +47,7 @@ export default function DashboardPage() {
         .eq("id", user.id)
         .single()
 
-      if (!perfil) { window.location.href = "/"; return }
+      if (!perfil) { router.push("/"); return }
 
       const empresaId = perfil.empresa_id
       setEmpresaNombre((perfil.empresas as any)?.nombre || "Mi Tienda")
@@ -64,7 +66,7 @@ export default function DashboardPage() {
       setLoading(false)
     }
     cargarDatos()
-  }, [])
+  }, [router])
 
   const totalSaldos = billeteras.reduce((acc, b) => acc + b.saldo, 0)
 
@@ -259,18 +261,21 @@ export default function DashboardPage() {
         borderTop: "1px solid rgba(255,255,255,0.08)"
       }}>
         <div className="max-w-lg mx-auto">
-          <button style={{
-            width: "100%",
-            background: "#27B173",
-            color: "white",
-            borderRadius: 20,
-            padding: "18px",
-            fontSize: 17,
-            fontWeight: 900,
-            border: "none",
-            cursor: "pointer",
-            letterSpacing: -0.3,
-          }}>
+          <button
+            onClick={() => router.push("/venta")}
+            style={{
+              width: "100%",
+              background: "#27B173",
+              color: "white",
+              borderRadius: 20,
+              padding: "18px",
+              fontSize: 17,
+              fontWeight: 900,
+              border: "none",
+              cursor: "pointer",
+              letterSpacing: -0.3,
+            }}
+          >
             + Registrar Venta
           </button>
         </div>
