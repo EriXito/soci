@@ -191,9 +191,21 @@ export default function DashboardPage() {
             <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>
               Inventario
             </p>
-            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>
-              {productosFiltrados.length} productos
-            </p>
+            <button
+              onClick={() => router.push("/inventario")}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#4ade80",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "var(--font-nunito)",
+                padding: 0,
+              }}
+            >
+              Ver todo →
+            </button>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
