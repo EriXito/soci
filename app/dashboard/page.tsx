@@ -265,18 +265,35 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Botón registrar venta */}
+      {/* Botones fijos */}
       <div style={{
         position: "fixed", bottom: 0, left: 0, right: 0,
         padding: "12px 20px 28px",
         background: "#1B3A6B",
         borderTop: "1px solid rgba(255,255,255,0.08)"
       }}>
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-lg mx-auto" style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => router.push("/caja")}
+            style={{
+              background: "rgba(0,0,0,0.35)",
+              color: "rgba(255,255,255,0.8)",
+              borderRadius: 20,
+              padding: "18px 16px",
+              fontSize: 14,
+              fontWeight: 800,
+              border: "1px solid rgba(255,255,255,0.12)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              fontFamily: "var(--font-nunito)",
+            }}
+          >
+            🧾 Caja
+          </button>
           <button
             onClick={() => router.push("/venta")}
             style={{
-              width: "100%",
+              flex: 1,
               background: "#27B173",
               color: "white",
               borderRadius: 20,
@@ -286,6 +303,7 @@ export default function DashboardPage() {
               border: "none",
               cursor: "pointer",
               letterSpacing: -0.3,
+              fontFamily: "var(--font-nunito)",
             }}
           >
             + Registrar Venta
