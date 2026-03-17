@@ -42,6 +42,11 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push("/"); return }
 
+      if (!localStorage.getItem("soci_onboarding_done")) {
+        router.push("/onboarding")
+        return
+      }
+
       const { data: perfil } = await supabase
         .from("perfiles")
         .select("empresa_id, empresas(nombre)")
