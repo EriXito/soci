@@ -32,6 +32,10 @@ export default function VentaPage() {
   const [loadingDatos, setLoadingDatos] = useState(true)
   const [recibido, setRecibido] = useState("")
   const [inputTemp, setInputTemp] = useState<Record<string, string>>({})
+  const [showModalCrear, setShowModalCrear] = useState(false)
+  const [nombreNuevo, setNombreNuevo] = useState("")
+  const [precioNuevo, setPrecioNuevo] = useState("")
+  const [loadingCrear, setLoadingCrear] = useState(false)
 
   useEffect(() => {
     const cargar = async () => {
@@ -53,7 +57,6 @@ export default function VentaPage() {
         .select("*")
         .eq("empresa_id", perfil.empresa_id)
         .eq("activo", true)
-        .gt("stock_actual", 0)
         .order("nombre")
 
       setProductos(productosData || [])
@@ -91,7 +94,8 @@ const cambiarCantidad = (producto: Producto, delta: number) => {
       })
       return next
     }
-    if (nueva > producto.stock_actual) return prev
+    // stock_actual === 0 significa venta libre (sin límite de stock)
+    if (producto.stock_actual > 0 && nueva > producto.stock_actual) return prev
     setInputTemp(prevT => ({ ...prevT, [producto.id]: String(nueva) }))
     return { ...prev, [producto.id]: nueva }
   })
@@ -114,6 +118,36 @@ const confirmarInputTemp = (producto: Producto) => {
     setInputTemp(prev => ({ ...prev, [producto.id]: String(carrito[producto.id] || 1) }))
   }
 }
+
+  const crearYVender = async () => {
+    const precio = parseFloat(precioNuevo)
+    if (!nombreNuevo.trim() || isNaN(precio) || precio <= 0 || !empresaId) return
+    setLoadingCrear(true)
+
+    const { data: nuevo } = await supabase
+      .from("productos")
+      .insert({
+        empresa_id: empresaId,
+        nombre: nombreNuevo.trim(),
+        marca: "",
+        precio_venta: precio,
+        precio_compra: 0,
+        stock_actual: 0,
+        stock_minimo: 0,
+        activo: true,
+      })
+      .select()
+      .single()
+
+    setLoadingCrear(false)
+    if (!nuevo) return
+
+    setProductos(prev => [...prev, nuevo])
+    setCarrito(prev => ({ ...prev, [nuevo.id]: 1 }))
+    setInputTemp(prev => ({ ...prev, [nuevo.id]: "1" }))
+    setShowModalCrear(false)
+    setBusqueda("")
+  }
 
   const confirmarVenta = async (metodoPago: string) => {
     if (totalCarrito === 0 || !empresaId) return
@@ -240,6 +274,28 @@ const confirmarInputTemp = (producto: Producto) => {
             />
           </div>
 
+          {busqueda.length > 0 && productosFiltrados.length === 0 && (
+            <button
+              onClick={() => { setNombreNuevo(busqueda); setPrecioNuevo(""); setShowModalCrear(true) }}
+              style={{
+                width: "100%",
+                background: "rgba(39,177,115,0.12)",
+                border: "2px dashed rgba(39,177,115,0.5)",
+                borderRadius: 20,
+                padding: "22px 20px",
+                color: "#4ade80",
+                fontSize: 16,
+                fontWeight: 800,
+                cursor: "pointer",
+                fontFamily: "var(--font-nunito)",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              ＋ Crear y vender &quot;{busqueda}&quot;
+            </button>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {productosFiltrados.map((p) => {
               const cantidad = carrito[p.id] || 0
@@ -261,7 +317,7 @@ const confirmarInputTemp = (producto: Producto) => {
                   <div style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
                     <p style={{ color: "white", fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{p.nombre}</p>
                     <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
-                      {formatCOP(p.precio_venta)} · {p.stock_actual} en stock
+                      {formatCOP(p.precio_venta)} · {p.stock_actual > 0 ? `${p.stock_actual} en stock` : "Venta libre"}
                     </p>
                   </div>
 
@@ -428,6 +484,99 @@ const confirmarInputTemp = (producto: Producto) => {
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal crear producto */}
+      {showModalCrear && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 50,
+          background: "rgba(0,0,0,0.65)",
+          display: "flex", alignItems: "flex-end", justifyContent: "center",
+          padding: "0 0 0 0",
+        }}
+          onClick={() => setShowModalCrear(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 480,
+              background: "#1B3A6B",
+              borderRadius: "24px 24px 0 0",
+              padding: "28px 24px 40px",
+              border: "1px solid rgba(255,255,255,0.12)",
+            }}
+          >
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 18 }}>
+              Nuevo producto
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Nombre</p>
+                <input
+                  type="text"
+                  value={nombreNuevo}
+                  onChange={(e) => setNombreNuevo(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: "100%",
+                    background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 14,
+                    padding: "14px 16px",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "white",
+                    outline: "none",
+                    fontFamily: "var(--font-nunito)",
+                  }}
+                />
+              </div>
+              <div>
+                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Precio de venta</p>
+                <input
+                  type="number"
+                  placeholder="Ej: 2500"
+                  value={precioNuevo}
+                  onChange={(e) => setPrecioNuevo(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  style={{
+                    width: "100%",
+                    background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 14,
+                    padding: "14px 16px",
+                    fontSize: 22,
+                    fontWeight: 900,
+                    color: "white",
+                    outline: "none",
+                    fontFamily: "var(--font-nunito)",
+                    appearance: "none",
+                    MozAppearance: "textfield",
+                  } as React.CSSProperties}
+                />
+              </div>
+              <button
+                onClick={crearYVender}
+                disabled={loadingCrear || !nombreNuevo.trim() || !precioNuevo}
+                style={{
+                  marginTop: 8,
+                  width: "100%",
+                  background: loadingCrear || !nombreNuevo.trim() || !precioNuevo ? "rgba(39,177,115,0.4)" : "#27B173",
+                  color: "white",
+                  borderRadius: 16,
+                  padding: "16px",
+                  fontSize: 16,
+                  fontWeight: 900,
+                  border: "none",
+                  cursor: loadingCrear || !nombreNuevo.trim() || !precioNuevo ? "not-allowed" : "pointer",
+                  fontFamily: "var(--font-nunito)",
+                }}
+              >
+                {loadingCrear ? "Guardando..." : "Agregar al carrito"}
+              </button>
+            </div>
           </div>
         </div>
       )}
