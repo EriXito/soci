@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import NavBar from "@/app/components/NavBar"
 
 interface Billetera {
   id: string
@@ -94,7 +95,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: "#1B3A6B" }}>
+    <div className="min-h-screen pb-40" style={{ background: "#1B3A6B" }}>
 
       {/* Header */}
       <div className="px-5 pt-10 pb-5 max-w-lg mx-auto">
@@ -265,35 +266,17 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Botones fijos */}
+      {/* Botón registrar venta — sobre la navbar */}
       <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
-        padding: "12px 20px 28px",
-        background: "#1B3A6B",
-        borderTop: "1px solid rgba(255,255,255,0.08)"
+        position: "fixed", bottom: 64, left: 0, right: 0,
+        padding: "8px 20px 10px",
+        background: "linear-gradient(to top, #1B3A6B 60%, transparent)",
       }}>
-        <div className="max-w-lg mx-auto" style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={() => router.push("/caja")}
-            style={{
-              background: "rgba(0,0,0,0.35)",
-              color: "rgba(255,255,255,0.8)",
-              borderRadius: 20,
-              padding: "18px 16px",
-              fontSize: 14,
-              fontWeight: 800,
-              border: "1px solid rgba(255,255,255,0.12)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              fontFamily: "var(--font-nunito)",
-            }}
-          >
-            🧾 Caja
-          </button>
+        <div className="max-w-lg mx-auto">
           <button
             onClick={() => router.push("/venta")}
             style={{
-              flex: 1,
+              width: "100%",
               background: "#27B173",
               color: "white",
               borderRadius: 20,
@@ -310,6 +293,8 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <NavBar />
 
     </div>
   )

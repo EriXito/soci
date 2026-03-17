@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import NavBar from "@/app/components/NavBar"
 
 interface Producto {
   id: string
@@ -187,7 +188,7 @@ export default function InventarioPage() {
   const inactivos = productos.filter(p => !p.activo).length
 
   return (
-    <div className="min-h-screen pb-36" style={{ background: "#1B3A6B" }}>
+    <div className="min-h-screen pb-44" style={{ background: "#1B3A6B" }}>
 
       {/* Header */}
       <div className="px-5 pt-10 pb-4 max-w-lg mx-auto">
@@ -532,12 +533,11 @@ export default function InventarioPage() {
         </div>
       )}
 
-      {/* Footer fijo */}
+      {/* Botón agregar — sobre la navbar */}
       <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
-        padding: "12px 20px 28px",
-        background: "#1B3A6B",
-        borderTop: "1px solid rgba(255,255,255,0.08)",
+        position: "fixed", bottom: 64, left: 0, right: 0,
+        padding: "8px 20px 10px",
+        background: "linear-gradient(to top, #1B3A6B 60%, transparent)",
       }}>
         <div className="max-w-lg mx-auto">
           <button
@@ -560,6 +560,7 @@ export default function InventarioPage() {
         </div>
       </div>
 
+      <NavBar />
     </div>
   )
 }

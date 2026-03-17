@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import NavBar from "@/app/components/NavBar"
 
 interface VentaItem {
   nombre_producto: string
@@ -210,7 +211,7 @@ export default function CajaPage() {
   })
 
   return (
-    <div className="min-h-screen pb-10" style={{ background: "#1B3A6B" }}>
+    <div className="min-h-screen pb-24" style={{ background: "#1B3A6B" }}>
 
       {/* Header */}
       <div className="px-5 pt-10 pb-6 max-w-lg mx-auto">
@@ -565,7 +566,7 @@ export default function CajaPage() {
 
       </div>
 
-      {/* Modal gasto (overlay al hacer clic fuera) */}
+      <NavBar />
     </div>
   )
 }
