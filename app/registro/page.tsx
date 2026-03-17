@@ -31,16 +31,6 @@ const labelStyle: React.CSSProperties = {
   display: "block",
 }
 
-function generarSlug(nombre: string): string {
-  return nombre
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 50)
-}
 
 export default function RegistroPage() {
   const router = useRouter()
@@ -138,43 +128,20 @@ export default function RegistroPage() {
       return
     }
 
-    // Activar sesión si Supabase la retornó directamente (email confirm desactivado)
-    if (authData.session) {
-      await supabase.auth.setSession(authData.session)
-    }
+    // 2. Crear empresa, perfil y billeteras via función con security definer
+    const { error: rpcError } = await supabase.rpc("crear_empresa_nueva", {
+      p_user_id: userId,
+      p_nombre: nombreTienda.trim(),
+      p_telefono: telefono.trim() || null,
+      p_direccion: direccion.trim() || null,
+      p_slug: nombreTienda.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+    })
 
-    // 2. Crear empresa
-    const { data: empresa, error: empresaError } = await supabase
-      .from("empresas")
-      .insert({
-        nombre: nombreTienda.trim(),
-        slug: generarSlug(nombreTienda),
-        telefono: telefono.trim() || null,
-        direccion: direccion.trim() || null,
-      })
-      .select()
-      .single()
-
-    if (empresaError || !empresa) {
+    if (rpcError) {
       setErrorGeneral("Error al crear la tienda. Intenta de nuevo.")
       setLoading(false)
       return
     }
-
-    // 3. Crear perfil
-    await supabase.from("perfiles").insert({
-      id: userId,
-      empresa_id: empresa.id,
-      nombre: nombreTienda.trim(),
-      rol: "dueño",
-    })
-
-    // 4. Crear billeteras iniciales
-    await supabase.from("billeteras").insert([
-      { empresa_id: empresa.id, nombre: "Efectivo", saldo: 0, color: "#27B173", icono: "💵" },
-      { empresa_id: empresa.id, nombre: "Nequi",    saldo: 0, color: "#7C6FF7", icono: "📲" },
-      { empresa_id: empresa.id, nombre: "Daviplata", saldo: 0, color: "#E24B4A", icono: "💳" },
-    ])
 
     // 5. Mostrar pantalla de confirmación de correo
     setPaso(3)
