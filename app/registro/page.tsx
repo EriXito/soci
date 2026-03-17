@@ -45,7 +45,7 @@ function generarSlug(nombre: string): string {
 export default function RegistroPage() {
   const router = useRouter()
 
-  const [paso, setPaso] = useState<1 | 2>(1)
+  const [paso, setPaso] = useState<1 | 2 | 3>(1)
 
   // Paso 1
   const [nombreTienda, setNombreTienda] = useState("")
@@ -58,8 +58,11 @@ export default function RegistroPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
 
   const [loading, setLoading] = useState(false)
+  const [loadingLogin, setLoadingLogin] = useState(false)
+  const [reenviado, setReenviado] = useState(false)
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [errorGeneral, setErrorGeneral] = useState("")
+  const [errorLogin, setErrorLogin] = useState("")
 
   const validarPaso1 = (): boolean => {
     const e: Record<string, string> = {}
@@ -82,6 +85,27 @@ export default function RegistroPage() {
 
   const handleSiguiente = () => {
     if (validarPaso1()) setPaso(2)
+  }
+
+  const handleConfirmar = async () => {
+    setLoadingLogin(true)
+    setErrorLogin("")
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    setLoadingLogin(false)
+    if (error) {
+      setErrorLogin("Tu correo aún no está confirmado. Revisa tu bandeja o carpeta de spam.")
+      return
+    }
+    router.push("/dashboard")
+  }
+
+  const handleReenviar = async () => {
+    setReenviado(false)
+    await supabase.auth.resend({ type: "signup", email: email.trim() })
+    setReenviado(true)
   }
 
   const handleRegistrar = async (e: React.FormEvent) => {
@@ -107,11 +131,16 @@ export default function RegistroPage() {
       return
     }
 
-    const user = authData.user
-    if (!user) {
+    const userId = authData.user?.id
+    if (!userId) {
       setErrorGeneral("Revisa tu correo para confirmar la cuenta y luego inicia sesión.")
       setLoading(false)
       return
+    }
+
+    // Activar sesión si Supabase la retornó directamente (email confirm desactivado)
+    if (authData.session) {
+      await supabase.auth.setSession(authData.session)
     }
 
     // 2. Crear empresa
@@ -134,7 +163,7 @@ export default function RegistroPage() {
 
     // 3. Crear perfil
     await supabase.from("perfiles").insert({
-      id: user.id,
+      id: userId,
       empresa_id: empresa.id,
       nombre: nombreTienda.trim(),
       rol: "dueño",
@@ -147,8 +176,8 @@ export default function RegistroPage() {
       { empresa_id: empresa.id, nombre: "Daviplata", saldo: 0, color: "#E24B4A", icono: "💳" },
     ])
 
-    // 5. Ir al dashboard (el onboarding aparecerá automáticamente)
-    router.push("/dashboard")
+    // 5. Mostrar pantalla de confirmación de correo
+    setPaso(3)
   }
 
   return (
@@ -177,7 +206,7 @@ export default function RegistroPage() {
 
         {/* Indicador de pasos */}
         <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-          {[1, 2].map((p) => (
+          {[1, 2, 3].map((p) => (
             <div
               key={p}
               style={{
@@ -274,6 +303,78 @@ export default function RegistroPage() {
 
               </div>
             </>
+          )}
+
+          {/* ── PASO 3: Confirmar correo ── */}
+          {paso === 3 && (
+            <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+              <div style={{ fontSize: 72, marginBottom: 20, lineHeight: 1 }}>📧</div>
+              <p style={{ color: "white", fontSize: 22, fontWeight: 900, marginBottom: 12, letterSpacing: -0.5 }}>
+                ¡Casi listo!
+              </p>
+              <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, lineHeight: 1.6, marginBottom: 6 }}>
+                Te enviamos un correo a{" "}
+                <span style={{ color: "white", fontWeight: 700 }}>{email}</span>.
+                Ábrelo y toca el enlace para activar tu cuenta.
+              </p>
+              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 28 }}>
+                ¿No lo encuentras? Revisa tu carpeta de spam
+              </p>
+
+              {errorLogin && (
+                <div style={{
+                  background: "rgba(248,113,113,0.1)",
+                  border: "1px solid rgba(248,113,113,0.3)",
+                  borderRadius: 12,
+                  padding: "11px 14px",
+                  marginBottom: 16,
+                }}>
+                  <p style={{ color: "#f87171", fontSize: 13, fontWeight: 600 }}>
+                    {errorLogin}
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <button
+                  onClick={handleConfirmar}
+                  disabled={loadingLogin}
+                  style={{
+                    background: loadingLogin ? "rgba(39,177,115,0.5)" : "#27B173",
+                    color: "white",
+                    borderRadius: 16,
+                    padding: "16px",
+                    fontSize: 16,
+                    fontWeight: 900,
+                    border: "none",
+                    cursor: loadingLogin ? "not-allowed" : "pointer",
+                    fontFamily: "var(--font-nunito)",
+                    letterSpacing: -0.3,
+                  }}
+                >
+                  {loadingLogin ? "Verificando..." : "Ya confirmé mi correo"}
+                </button>
+
+                <button
+                  onClick={handleReenviar}
+                  disabled={reenviado}
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 16,
+                    padding: "14px",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: reenviado ? "#4ade80" : "rgba(255,255,255,0.6)",
+                    cursor: reenviado ? "default" : "pointer",
+                    fontFamily: "var(--font-nunito)",
+                    transition: "color 0.2s",
+                  }}
+                >
+                  {reenviado ? "✓ Correo reenviado" : "Reenviar correo"}
+                </button>
+              </div>
+            </div>
           )}
 
           {/* ── PASO 2: Crear cuenta ── */}
@@ -404,7 +505,7 @@ export default function RegistroPage() {
         </div>
 
         {/* Enlace a login */}
-        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, textAlign: "center", marginTop: 24 }}>
+        {paso !== 3 && <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, textAlign: "center", marginTop: 24 }}>
           ¿Ya tienes cuenta?{" "}
           <button
             onClick={() => router.push("/")}
@@ -421,7 +522,7 @@ export default function RegistroPage() {
           >
             Inicia sesión
           </button>
-        </p>
+        </p>}
 
       </div>
     </div>
