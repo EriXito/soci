@@ -424,7 +424,7 @@ export default function InventarioPage() {
               </div>
 
               {/* Precio mínimo */}
-              <Campo label="Precio mínimo (anti robo hormiga)">
+              <Campo label="Precio mínimo">
                 <input
                   type="number"
                   value={form.precio_minimo}

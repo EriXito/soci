@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -136,8 +138,23 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 13, textAlign: "center", marginTop: 24 }}>
-          ¿No tienes cuenta? Escríbenos por WhatsApp
+        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, textAlign: "center", marginTop: 24 }}>
+          ¿No tienes cuenta?{" "}
+          <button
+            onClick={() => router.push("/registro")}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#4ade80",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "var(--font-nunito)",
+              padding: 0,
+            }}
+          >
+            Regístrate aquí
+          </button>
         </p>
 
       </div>

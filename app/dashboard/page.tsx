@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const [empresaNombre, setEmpresaNombre] = useState("")
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
+  const [ventasHoy, setVentasHoy] = useState<{ total: number; count: number }>({ total: 0, count: 0 })
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -58,17 +59,30 @@ export default function DashboardPage() {
       const empresaId = perfil.empresa_id
       setEmpresaNombre((perfil.empresas as any)?.nombre || "Mi Tienda")
 
-      const { data: billeterasData } = await supabase
-        .from("billeteras").select("*").eq("empresa_id", empresaId)
+      const ahora = new Date()
+      const ahoraCO = new Date(ahora.getTime() - 5 * 60 * 60 * 1000)
+      const inicioDia = new Date(
+        Date.UTC(ahoraCO.getUTCFullYear(), ahoraCO.getUTCMonth(), ahoraCO.getUTCDate()) + 5 * 60 * 60 * 1000
+      ).toISOString()
 
-      const { data: productosData } = await supabase
-        .from("productos").select("*")
-        .eq("empresa_id", empresaId)
-        .eq("activo", true)
-        .order("stock_actual", { ascending: true })
+      const [billeterasRes, productosRes, ventasRes] = await Promise.all([
+        supabase.from("billeteras").select("*").eq("empresa_id", empresaId),
+        supabase.from("productos").select("*")
+          .eq("empresa_id", empresaId)
+          .eq("activo", true)
+          .order("stock_actual", { ascending: true }),
+        supabase.from("ventas").select("total")
+          .eq("empresa_id", empresaId)
+          .gte("created_at", inicioDia),
+      ])
 
-      setBilleteras(billeterasData || [])
-      setProductos(productosData || [])
+      const ventas = ventasRes.data || []
+      setVentasHoy({
+        total: ventas.reduce((acc, v) => acc + v.total, 0),
+        count: ventas.length,
+      })
+      setBilleteras(billeterasRes.data || [])
+      setProductos(productosRes.data || [])
       setLoading(false)
     }
     cargarDatos()
@@ -145,6 +159,24 @@ export default function DashboardPage() {
       </div>
 
       <div className="px-5 max-w-lg mx-auto flex flex-col gap-5">
+
+        {/* Card ventas del día */}
+        <div style={{
+          background: "rgba(0,0,0,0.3)",
+          borderRadius: 24,
+          padding: "20px 22px",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>
+            Vendido hoy
+          </p>
+          <p style={{ color: "#27B173", fontSize: 38, fontWeight: 900, letterSpacing: -1, margin: "6px 0 4px" }}>
+            {formatCOP(ventasHoy.total)}
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+            {ventasHoy.count === 0 ? "Sin ventas hoy" : `${ventasHoy.count} ${ventasHoy.count === 1 ? "venta" : "ventas"} registradas`}
+          </p>
+        </div>
 
         {/* Card total */}
         <div style={{
