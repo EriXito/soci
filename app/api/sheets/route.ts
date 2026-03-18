@@ -26,6 +26,7 @@ async function asegurarHoja(
 ) {
   const { data } = await sheets.spreadsheets.get({ spreadsheetId })
   const existe = data.sheets?.some(s => s.properties?.title === nombre)
+
   if (!existe) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -37,6 +38,22 @@ async function asegurarHoja(
       valueInputOption: "RAW",
       requestBody: { values: [headers] },
     })
+  } else {
+    // Verificar si los headers actuales coinciden; si no, actualizarlos
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${nombre}!1:1`,
+    })
+    const headersActuales = res.data.values?.[0] ?? []
+    const coinciden = headers.every((h, i) => headersActuales[i] === h)
+    if (!coinciden) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${nombre}!A1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [headers] },
+      })
+    }
   }
 }
 
@@ -68,24 +85,35 @@ export async function POST(req: NextRequest) {
 
     if (tipo === "venta") {
       await asegurarHoja(sheets, spreadsheetId, "Ventas", [
-        "Fecha", "Hora", "Productos", "Total", "Medio de Pago",
+        "Fecha", "Hora", "ID Venta", "Producto", "Cantidad",
+        "Precio Unitario", "Subtotal", "Total Venta", "Medio de Pago",
       ])
 
       // Hora Colombia (UTC-5)
       const col = new Date(Date.now() - 5 * 60 * 60 * 1000)
       const fecha = col.toISOString().slice(0, 10)
-      const hora = col.toTimeString().slice(0, 5)
-      const productosStr = (datos.items as { nombre_producto: string; cantidad: number }[])
-        .map(i => `${i.nombre_producto} x${i.cantidad}`)
-        .join(", ")
+      const hora = col.toISOString().slice(11, 16) // HH:MM en UTC-5
+
+      type Item = { nombre_producto: string; cantidad: number; precio_unitario: number; subtotal: number }
+      const filas = (datos.items as Item[]).map(item => [
+        fecha,
+        hora,
+        datos.venta_id,
+        item.nombre_producto,
+        item.cantidad,
+        item.precio_unitario,
+        item.subtotal,
+        datos.total,
+        datos.metodo_pago,
+      ])
 
       console.log("Escribiendo en sheets...")
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: "Ventas!A:E",
+        range: "Ventas!A:I",
         valueInputOption: "RAW",
         insertDataOption: "INSERT_ROWS",
-        requestBody: { values: [[fecha, hora, productosStr, datos.total, datos.metodo_pago]] },
+        requestBody: { values: filas },
       })
 
     } else if (tipo === "producto") {

@@ -73,6 +73,7 @@ export default function ReportesPage() {
   const [empresaId, setEmpresaId] = useState("")
   const [empresaNombre, setEmpresaNombre] = useState("")
   const [email, setEmail] = useState("")
+  const [sheetsId, setSheetsId] = useState<string | null>(null)
 
   // Autenticación + perfil
   useEffect(() => {
@@ -90,6 +91,14 @@ export default function ReportesPage() {
 
       setEmpresaNombre((perfil.empresas as unknown as { nombre: string })?.nombre || "Mi Tienda")
       setEmpresaId(perfil.empresa_id)
+
+      const { data: empresa } = await supabase
+        .from("empresas")
+        .select("sheets_id")
+        .eq("id", perfil.empresa_id)
+        .maybeSingle()
+      setSheetsId(empresa?.sheets_id ?? null)
+
       setLoading(false)
     }
     init()
@@ -358,6 +367,31 @@ export default function ReportesPage() {
                 })}
               </div>
             </div>
+
+            {/* ── Botón Google Sheets ── */}
+            {sheetsId && (
+              <button
+                onClick={() => window.open(`https://docs.google.com/spreadsheets/d/${sheetsId}`, "_blank")}
+                style={{
+                  width: "100%",
+                  background: "rgba(0,0,0,0.3)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: 16,
+                  padding: 16,
+                  color: "white",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-nunito)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <span style={{ fontSize: 20 }}>📊</span>
+                Ver mi Excel en Google Sheets
+              </button>
+            )}
 
             {/* ── Sección Perfil ── */}
             <div style={{ marginTop: 8 }}>

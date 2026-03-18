@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
-import { syncVentaSheets } from "@/lib/syncSheets"
+import { syncVentaSheets, syncProductoSheets } from "@/lib/syncSheets"
 
 interface Producto {
   id: string
@@ -143,6 +143,16 @@ const confirmarInputTemp = (producto: Producto) => {
     setLoadingCrear(false)
     if (!nuevo) return
 
+    // Sincronizar nuevo producto con Google Sheets (fire-and-forget)
+    syncProductoSheets(empresaId, {
+      nombre: nuevo.nombre,
+      marca: "",
+      precio_compra: 0,
+      precio_venta: nuevo.precio_venta,
+      stock_actual: 0,
+      stock_minimo: 0,
+    })
+
     setProductos(prev => [...prev, nuevo])
     setCarrito(prev => ({ ...prev, [nuevo.id]: 1 }))
     setInputTemp(prev => ({ ...prev, [nuevo.id]: "1" }))
@@ -201,8 +211,13 @@ const confirmarInputTemp = (producto: Producto) => {
     // Sincronizar con Google Sheets (fire-and-forget)
     syncVentaSheets(
       empresaId,
-      { total: totalCarrito, metodo_pago: metodoPago },
-      items.map(i => ({ nombre_producto: i.nombre_producto, cantidad: i.cantidad }))
+      { venta_id: venta.id, total: totalCarrito, metodo_pago: metodoPago },
+      items.map(i => ({
+        nombre_producto: i.nombre_producto,
+        cantidad: i.cantidad,
+        precio_unitario: i.precio_unitario,
+        subtotal: i.subtotal,
+      }))
     )
 
     setLoading(false)

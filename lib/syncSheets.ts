@@ -5,8 +5,8 @@
 
 export function syncVentaSheets(
   empresa_id: string,
-  venta: { total: number; metodo_pago: string },
-  items: { nombre_producto: string; cantidad: number }[]
+  venta: { venta_id: string; total: number; metodo_pago: string },
+  items: { nombre_producto: string; cantidad: number; precio_unitario: number; subtotal: number }[]
 ) {
   fetch("/api/sheets", {
     method: "POST",
