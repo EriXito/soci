@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { syncVentaSheets, syncProductoSheets } from "@/lib/syncSheets"
+import BotonVoz from "@/app/components/BotonVoz"
 
 interface Producto {
   id: string
@@ -37,6 +38,32 @@ export default function VentaPage() {
   const [nombreNuevo, setNombreNuevo] = useState("")
   const [precioNuevo, setPrecioNuevo] = useState("")
   const [loadingCrear, setLoadingCrear] = useState(false)
+  const [vozMensaje, setVozMensaje] = useState("")
+
+  const handleProductosVoz = (items: { producto_id: string; cantidad: number }[]) => {
+    let agregados = 0
+    setCarrito(prev => {
+      const next = { ...prev }
+      items.forEach(item => {
+        if (productos.find(p => p.id === item.producto_id)) {
+          next[item.producto_id] = (next[item.producto_id] || 0) + item.cantidad
+          agregados++
+        }
+      })
+      return next
+    })
+    setInputTemp(prev => {
+      const next = { ...prev }
+      items.forEach(item => {
+        if (productos.find(p => p.id === item.producto_id)) {
+          next[item.producto_id] = String((parseInt(prev[item.producto_id] || "0")) + item.cantidad)
+        }
+      })
+      return next
+    })
+    setVozMensaje(agregados > 0 ? `✓ ${agregados} producto${agregados > 1 ? "s" : ""} agregado${agregados > 1 ? "s" : ""} al carrito` : "No se encontraron productos")
+    setTimeout(() => setVozMensaje(""), 3000)
+  }
 
   useEffect(() => {
     const cargar = async () => {
@@ -275,6 +302,31 @@ const confirmarInputTemp = (producto: Producto) => {
       {/* PASO 1 */}
       {paso === 1 && (
         <div className="px-5 max-w-lg mx-auto">
+
+          {/* Botón dictado por voz */}
+          <BotonVoz
+            productos={productos}
+            empresaId={empresaId}
+            onProductosIdentificados={handleProductosVoz}
+          />
+
+          {/* Toast voz */}
+          {vozMensaje && (
+            <div style={{
+              background: "rgba(39,177,115,0.15)",
+              border: "1px solid rgba(39,177,115,0.35)",
+              borderRadius: 14,
+              padding: "10px 16px",
+              marginBottom: 12,
+              color: "#27B173",
+              fontSize: 13,
+              fontWeight: 700,
+              textAlign: "center",
+            }}>
+              {vozMensaje}
+            </div>
+          )}
+
           <div style={{ position: "relative", marginBottom: 16 }}>
             <span style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>🔍</span>
             <input
