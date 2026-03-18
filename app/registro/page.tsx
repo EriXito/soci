@@ -129,7 +129,7 @@ export default function RegistroPage() {
     }
 
     // 2. Crear empresa, perfil y billeteras via función con security definer
-    const { error: rpcError } = await supabase.rpc("crear_empresa_nueva", {
+    const { data: empresaId, error: rpcError } = await supabase.rpc("crear_empresa_nueva", {
       p_user_id: userId,
       p_nombre: nombreTienda.trim(),
       p_telefono: telefono.trim() || null,
@@ -141,6 +141,15 @@ export default function RegistroPage() {
       setErrorGeneral("Error al crear la tienda. Intenta de nuevo.")
       setLoading(false)
       return
+    }
+
+    // 3. Crear Google Sheet (fire-and-forget)
+    if (empresaId) {
+      fetch("/api/crear-sheets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa_id: empresaId, nombre_empresa: nombreTienda.trim() }),
+      }).catch(() => {/* silencioso */})
     }
 
     // 5. Mostrar pantalla de confirmación de correo
