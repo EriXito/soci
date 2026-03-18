@@ -74,6 +74,34 @@ export default function ReportesPage() {
   const [empresaNombre, setEmpresaNombre] = useState("")
   const [email, setEmail] = useState("")
   const [sheetsId, setSheetsId] = useState<string | null>(null)
+  const [sincronizando, setSincronizando] = useState(false)
+  const [sincMensaje, setSincMensaje] = useState("")
+
+  const sincronizarHistorial = async () => {
+    if (!sheetsId || !empresaId || sincronizando) return
+    setSincronizando(true)
+    setSincMensaje("")
+    try {
+      const res = await fetch("/api/sheets/sincronizar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa_id: empresaId }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setSincMensaje(data.sincronizadas > 0
+          ? `✓ ${data.sincronizadas} venta${data.sincronizadas > 1 ? "s" : ""} nueva${data.sincronizadas > 1 ? "s" : ""} sincronizada${data.sincronizadas > 1 ? "s" : ""}`
+          : "✓ Todo ya estaba actualizado"
+        )
+      } else {
+        setSincMensaje("Error al sincronizar")
+      }
+    } catch {
+      setSincMensaje("Error de conexión")
+    }
+    setSincronizando(false)
+    setTimeout(() => setSincMensaje(""), 4000)
+  }
 
   // Autenticación + perfil
   useEffect(() => {
@@ -367,6 +395,39 @@ export default function ReportesPage() {
                 })}
               </div>
             </div>
+
+            {/* ── Sincronizar historial ── */}
+            {sheetsId && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button
+                  onClick={sincronizarHistorial}
+                  disabled={sincronizando}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    borderRadius: 16,
+                    padding: 16,
+                    color: sincronizando ? "rgba(255,255,255,0.4)" : "white",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: sincronizando ? "not-allowed" : "pointer",
+                    fontFamily: "var(--font-nunito)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>🔄</span>
+                  {sincronizando ? "Sincronizando..." : "Sincronizar historial al Excel"}
+                </button>
+                {sincMensaje && (
+                  <p style={{ color: "#27B173", fontSize: 13, fontWeight: 700, textAlign: "center", margin: 0 }}>
+                    {sincMensaje}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* ── Botón Google Sheets ── */}
             {sheetsId && (
