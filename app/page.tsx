@@ -136,6 +136,25 @@ export default function LoginPage() {
             </button>
 
           </form>
+
+          <button
+            onClick={() => router.push("/recuperar-contrasena")}
+            style={{
+              background: "none",
+              border: "none",
+              color: "rgba(255,255,255,0.4)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "var(--font-nunito)",
+              padding: "12px 0 0",
+              width: "100%",
+              textAlign: "center",
+            }}
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
+
         </div>
 
         <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, textAlign: "center", marginTop: 24 }}>
