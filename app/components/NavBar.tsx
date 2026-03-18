@@ -6,7 +6,7 @@ const TABS = [
   { label: "Inicio", icon: "🏠", href: "/dashboard" },
   { label: "Inventario", icon: "📦", href: "/inventario" },
   { label: "Caja", icon: "🧾", href: "/caja" },
-  { label: "Perfil", icon: "👤", href: "/perfil" },
+  { label: "Reportes", icon: "📊", href: "/reportes" },
 ]
 
 export default function NavBar() {
