@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import { syncVentaSheets } from "@/lib/syncSheets"
 
 interface Producto {
   id: string
@@ -196,6 +197,13 @@ const confirmarInputTemp = (producto: Producto) => {
         .update({ saldo: billetera.saldo + totalCarrito })
         .eq("id", billetera.id)
     }
+
+    // Sincronizar con Google Sheets (fire-and-forget)
+    syncVentaSheets(
+      empresaId,
+      { total: totalCarrito, metodo_pago: metodoPago },
+      items.map(i => ({ nombre_producto: i.nombre_producto, cantidad: i.cantidad }))
+    )
 
     setLoading(false)
     router.push("/dashboard")

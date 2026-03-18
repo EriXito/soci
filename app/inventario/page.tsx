@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
+import { syncProductoSheets } from "@/lib/syncSheets"
 import NavBar from "@/app/components/NavBar"
 
 interface Producto {
@@ -171,6 +172,9 @@ export default function InventarioPage() {
     } else {
       await supabase.from("productos").insert(datos)
     }
+
+    // Sincronizar con Google Sheets (fire-and-forget)
+    syncProductoSheets(empresaId, datos)
 
     await recargar(empresaId)
     setLoadingGuardar(false)
