@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 
 interface ProductoSimple {
   id: string
@@ -23,12 +23,20 @@ interface Props {
 type Estado = "idle" | "escuchando" | "procesando" | "listo" | "error"
 
 export default function BotonVoz({ productos, empresaId, onProductosIdentificados }: Props) {
+  const [soportaVoz, setSoportaVoz] = useState<boolean | null>(null)
   const [estado, setEstado] = useState<Estado>("idle")
   const [texto, setTexto] = useState("")
   const [transcriptParcial, setTranscriptParcial] = useState("")
   const recognitionRef = useRef<any>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resultadoRecibido = useRef(false)
+
+  useEffect(() => {
+    const soporta =
+      typeof window !== "undefined" &&
+      ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
+    setSoportaVoz(soporta)
+  }, [])
 
   const limpiarTimeout = () => {
     if (timeoutRef.current) {
@@ -75,15 +83,8 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
 
   const iniciar = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) {
-      setTexto("Tu navegador no soporta voz")
-      setEstado("error")
-      setTimeout(() => { setEstado("idle"); setTexto("") }, 3000)
-      return
-    }
-
-    const recognition = new SR()
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
     recognitionRef.current = recognition
     recognition.lang = "es-CO"
     recognition.continuous = false
@@ -150,6 +151,16 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
     : estado === "procesando" ? "Procesando..."
     : estado === "listo" ? (texto || "Listo")
     : (texto || "Error")
+
+  // Hidratación pendiente
+  if (soportaVoz === null) return null
+
+  // Navegador sin soporte
+  if (soportaVoz === false) return (
+    <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, textAlign: "center", marginBottom: 16 }}>
+      Tu navegador no soporta dictado por voz
+    </p>
+  )
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 16 }}>
