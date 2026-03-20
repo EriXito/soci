@@ -2,12 +2,16 @@
 
 import { useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { obtenerVentasPendientes, eliminarVentaPendiente } from "@/lib/offline"
+import { obtenerVentasPendientes, eliminarVentaPendiente, marcarSincronizando } from "@/lib/offline"
+
+// Flag de módulo — persiste entre re-renders y re-montajes del hook
+let sincronizando = false
 
 export function useSync(onSincronizado?: (cantidad: number) => void) {
   useEffect(() => {
     const sincronizar = async () => {
       if (!navigator.onLine) return
+      if (sincronizando) return
 
       let pendientes: Awaited<ReturnType<typeof obtenerVentasPendientes>>
       try {
@@ -15,12 +19,19 @@ export function useSync(onSincronizado?: (cantidad: number) => void) {
       } catch {
         return
       }
-      if (pendientes.length === 0) return
 
+      // Filtrar las que ya están siendo procesadas
+      const porProcesar = pendientes.filter(v => !v.sincronizando)
+      if (porProcesar.length === 0) return
+
+      sincronizando = true
       let sincronizadas = 0
 
-      for (const venta of pendientes) {
+      for (const venta of porProcesar) {
         try {
+          // Marcar como en proceso ANTES de insertar — evita doble procesamiento
+          await marcarSincronizando(venta.id)
+
           // 1. Insertar venta
           const { data: ventaDB } = await supabase
             .from("ventas")
@@ -33,7 +44,11 @@ export function useSync(onSincronizado?: (cantidad: number) => void) {
             .select()
             .single()
 
-          if (!ventaDB) continue
+          if (!ventaDB) {
+            // Si falló el insert revertir el flag para poder reintentar
+            await marcarSincronizando(venta.id, false)
+            continue
+          }
 
           // 2. Insertar items
           const items = venta.items.map((item: any) => ({
@@ -65,20 +80,19 @@ export function useSync(onSincronizado?: (cantidad: number) => void) {
               .eq("id", billetera.id)
           }
 
-          // 5. Eliminar de IndexedDB
+          // 5. Eliminar de IndexedDB — ya sincronizada
           await eliminarVentaPendiente(venta.id)
           sincronizadas++
         } catch {
-          // Si falla esta venta, intentar la siguiente
+          // Si falla, dejar en IndexedDB para el próximo intento
         }
       }
 
+      sincronizando = false
       if (sincronizadas > 0) onSincronizado?.(sincronizadas)
     }
 
-    // Sincronizar cuando vuelve internet
     window.addEventListener("online", sincronizar)
-    // Intentar también al montar (por si ya hay internet y hay pendientes)
     sincronizar()
 
     return () => window.removeEventListener("online", sincronizar)

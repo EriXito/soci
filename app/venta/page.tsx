@@ -193,7 +193,7 @@ const confirmarInputTemp = (producto: Producto) => {
     if (totalCarrito === 0 || !empresaId) return
     setLoading(true)
 
-    // Sin internet — guardar localmente y continuar
+    // Sin internet — guardar localmente y limpiar para siguiente venta
     if (!navigator.onLine) {
       const items = Object.entries(carrito).map(([id, cantidad]) => {
         const producto = productos.find(p => p.id === id)!
@@ -210,7 +210,13 @@ const confirmarInputTemp = (producto: Producto) => {
         return { id, stock_actual: producto.stock_actual - cantidad }
       })
       await guardarVentaPendiente({ empresa_id: empresaId, total: totalCarrito, metodo_pago: metodoPago, items, stock_updates })
+      // Limpiar estado para permitir registrar más ventas offline
+      setCarrito({})
+      setRecibido("")
+      setPaso(1)
       setLoading(false)
+      // Breve pausa para que el usuario vea el banner offline antes de redirigir
+      await new Promise(r => setTimeout(r, 1500))
       router.push("/dashboard")
       return
     }

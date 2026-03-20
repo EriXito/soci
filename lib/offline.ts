@@ -43,3 +43,11 @@ export async function eliminarVentaPendiente(id: string) {
   const db = await getDB()
   await db.delete("ventas_pendientes", id)
 }
+
+export async function marcarSincronizando(id: string, valor = true) {
+  const db = await getDB()
+  const venta = await db.get("ventas_pendientes", id)
+  if (venta) {
+    await db.put("ventas_pendientes", { ...venta, sincronizando: valor })
+  }
+}

@@ -32,6 +32,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
 
+  // No interceptar llamadas a Supabase ni a la API interna
+  const url = event.request.url
+  if (url.includes('supabase.co') || url.includes('/api/')) return
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
