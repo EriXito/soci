@@ -81,6 +81,14 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
   }
 
   const iniciar = () => {
+    const ua = navigator.userAgent
+    if (/iPhone|iPad|iPod/i.test(ua) && /CriOS/i.test(ua)) {
+      setTexto("Abre SOCI en Safari para usar el microfono")
+      setEstado("error")
+      setTimeout(() => { setEstado("idle"); setTexto("") }, 4000)
+      return
+    }
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
