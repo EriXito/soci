@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import NavBar from "@/app/components/NavBar"
 
 interface VentaItem {
+  producto_id: string | null
   nombre_producto: string
   cantidad: number
   precio_unitario: number
@@ -102,6 +103,10 @@ export default function CajaPage() {
   // Ventas expandibles
   const [ventaExpandida, setVentaExpandida] = useState<string | null>(null)
 
+  // Anulación
+  const [ventaAAnular, setVentaAAnular] = useState<Venta | null>(null)
+  const [anulando, setAnulando] = useState(false)
+
   useEffect(() => {
     const cargar = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -129,7 +134,7 @@ export default function CajaPage() {
         .from("ventas")
         .select(`
           id, total, metodo_pago, created_at,
-          venta_items(nombre_producto, cantidad, precio_unitario, subtotal, productos(precio_compra))
+          venta_items(producto_id, nombre_producto, cantidad, precio_unitario, subtotal, productos(precio_compra))
         `)
         .eq("empresa_id", eid)
         .gte("created_at", inicio)
@@ -194,6 +199,45 @@ export default function CajaPage() {
     setMontoGasto("")
     setShowFormGasto(false)
     setLoadingGasto(false)
+    await recargar(empresaId)
+  }
+
+  const anularVenta = async (venta: Venta) => {
+    setAnulando(true)
+
+    // 1. Revertir stock de cada producto
+    for (const item of venta.venta_items) {
+      if (!item.producto_id) continue
+      const { data: prod } = await supabase
+        .from("productos")
+        .select("stock_actual")
+        .eq("id", item.producto_id)
+        .single()
+      if (prod) {
+        await supabase
+          .from("productos")
+          .update({ stock_actual: prod.stock_actual + item.cantidad })
+          .eq("id", item.producto_id)
+      }
+    }
+
+    // 2. Revertir saldo de la billetera correspondiente
+    const billetera = billeteras.find(
+      b => b.nombre.toLowerCase() === venta.metodo_pago.toLowerCase()
+    )
+    if (billetera) {
+      await supabase
+        .from("billeteras")
+        .update({ saldo: billetera.saldo - venta.total })
+        .eq("id", billetera.id)
+    }
+
+    // 3. Eliminar items y venta
+    await supabase.from("venta_items").delete().eq("venta_id", venta.id)
+    await supabase.from("ventas").delete().eq("id", venta.id)
+
+    setVentaAAnular(null)
+    setAnulando(false)
     await recargar(empresaId)
   }
 
@@ -511,10 +555,10 @@ export default function CajaPage() {
                     }}
                   >
                     {/* Fila principal */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontSize: 24 }}>{m.icono}</span>
-                        <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 24, flexShrink: 0 }}>{m.icono}</span>
+                        <div style={{ minWidth: 0 }}>
                           <p style={{ color: "white", fontSize: 15, fontWeight: 900 }}>
                             {formatCOP(v.total)}
                           </p>
@@ -523,15 +567,34 @@ export default function CajaPage() {
                           </p>
                         </div>
                       </div>
-                      <span style={{
-                        color: "rgba(255,255,255,0.3)",
-                        fontSize: 18,
-                        transform: expandida ? "rotate(180deg)" : "rotate(0deg)",
-                        transition: "transform 0.2s",
-                        display: "inline-block",
-                      }}>
-                        ▾
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setVentaAAnular(v) }}
+                          style={{
+                            background: "rgba(239,68,68,0.1)",
+                            border: "1px solid rgba(239,68,68,0.3)",
+                            borderRadius: 8,
+                            padding: "5px 10px",
+                            color: "#E24B4A",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontFamily: "var(--font-nunito)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          🗑 Anular
+                        </button>
+                        <span style={{
+                          color: "rgba(255,255,255,0.3)",
+                          fontSize: 18,
+                          transform: expandida ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s",
+                          display: "inline-block",
+                        }}>
+                          ▾
+                        </span>
+                      </div>
                     </div>
 
                     {/* Detalle expandido */}
@@ -565,6 +628,73 @@ export default function CajaPage() {
         </div>
 
       </div>
+
+      {/* ── MODAL CONFIRMAR ANULACIÓN ── */}
+      {ventaAAnular && (
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.75)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 100, padding: 20,
+        }}>
+          <div style={{
+            background: "#152d5c",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 24,
+            padding: 28,
+            maxWidth: 340,
+            width: "100%",
+          }}>
+            <p style={{ fontSize: 28, textAlign: "center", marginBottom: 12 }}>⚠️</p>
+            <p style={{ color: "white", fontSize: 17, fontWeight: 900, marginBottom: 10, textAlign: "center" }}>
+              ¿Anular esta venta?
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 1.6, textAlign: "center", marginBottom: 24 }}>
+              ¿Seguro que quieres anular la venta de{" "}
+              <span style={{ color: "white", fontWeight: 900 }}>{formatCOP(ventaAAnular.total)}</span>?{" "}
+              El stock y el saldo de la billetera se revertirán. Esta acción no se puede deshacer.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setVentaAAnular(null)}
+                disabled={anulando}
+                style={{
+                  flex: 1,
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 14,
+                  padding: "14px",
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-nunito)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => anularVenta(ventaAAnular)}
+                disabled={anulando}
+                style={{
+                  flex: 1,
+                  background: anulando ? "rgba(226,75,74,0.4)" : "#E24B4A",
+                  border: "none",
+                  borderRadius: 14,
+                  padding: "14px",
+                  color: "white",
+                  fontSize: 14,
+                  fontWeight: 900,
+                  cursor: anulando ? "not-allowed" : "pointer",
+                  fontFamily: "var(--font-nunito)",
+                }}
+              >
+                {anulando ? "Anulando..." : "Sí, anular"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <NavBar />
     </div>
