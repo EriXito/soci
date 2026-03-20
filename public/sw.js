@@ -1,19 +1,6 @@
-const CACHE_NAME = 'soci-v1'
-const URLS_A_CACHEAR = [
-  '/',
-  '/dashboard',
-  '/venta',
-  '/inventario',
-  '/caja',
-  '/reportes',
-]
+const CACHE_NAME = 'soci-v2'
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(URLS_A_CACHEAR)
-    })
-  )
   self.skipWaiting()
 })
 
@@ -30,23 +17,37 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return
-
-  // No interceptar llamadas a Supabase ni a la API interna
   const url = event.request.url
-  if (url.includes('supabase.co') || url.includes('/api/')) return
+
+  // No interceptar estas
+  if (event.request.method !== 'GET') return
+  if (url.includes('supabase.co')) return
+  if (url.includes('/api/')) return
+  if (url.includes('googleapis.com')) return
+  if (url.startsWith('chrome-extension://')) return
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const clone = response.clone()
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, clone)
+    caches.match(event.request).then((cached) => {
+      // Siempre intentar red primero; usar cache solo si falla
+      return fetch(event.request)
+        .then((response) => {
+          // Solo cachear respuestas válidas (status 200, tipo basic)
+          if (
+            response.ok &&
+            response.status === 200 &&
+            response.type === 'basic'
+          ) {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, clone)
+            })
+          }
+          return response
         })
-        return response
-      })
-      .catch(() => {
-        return caches.match(event.request)
-      })
+        .catch(() => {
+          // Sin red — devolver del cache si existe
+          return cached || new Response('Offline', { status: 503 })
+        })
+    })
   )
 })
