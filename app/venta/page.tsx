@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { syncVentaSheets, syncProductoSheets } from "@/lib/syncSheets"
 import BotonVoz from "@/app/components/BotonVoz"
+import IndicadorOffline from "@/app/components/IndicadorOffline"
+import { guardarVentaPendiente } from "@/lib/offline"
 
 interface Producto {
   id: string
@@ -191,6 +193,28 @@ const confirmarInputTemp = (producto: Producto) => {
     if (totalCarrito === 0 || !empresaId) return
     setLoading(true)
 
+    // Sin internet — guardar localmente y continuar
+    if (!navigator.onLine) {
+      const items = Object.entries(carrito).map(([id, cantidad]) => {
+        const producto = productos.find(p => p.id === id)!
+        return {
+          producto_id: id,
+          nombre_producto: producto.nombre,
+          cantidad,
+          precio_unitario: producto.precio_venta,
+          subtotal: producto.precio_venta * cantidad,
+        }
+      })
+      const stock_updates = Object.entries(carrito).map(([id, cantidad]) => {
+        const producto = productos.find(p => p.id === id)!
+        return { id, stock_actual: producto.stock_actual - cantidad }
+      })
+      await guardarVentaPendiente({ empresa_id: empresaId, total: totalCarrito, metodo_pago: metodoPago, items, stock_updates })
+      setLoading(false)
+      router.push("/dashboard")
+      return
+    }
+
     const { data: venta } = await supabase
       .from("ventas")
       .insert({ empresa_id: empresaId, total: totalCarrito, metodo_pago: metodoPago })
@@ -261,6 +285,7 @@ const confirmarInputTemp = (producto: Producto) => {
 
   return (
     <div className="min-h-screen pb-36" style={{ background: "#1B3A6B" }}>
+      <IndicadorOffline />
 
       {/* Header */}
       <div className="px-5 pt-10 pb-4 max-w-lg mx-auto">

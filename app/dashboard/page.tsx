@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import NavBar from "@/app/components/NavBar"
+import IndicadorOffline from "@/app/components/IndicadorOffline"
+import { useSync } from "@/app/hooks/useSync"
 
 interface Billetera {
   id: string
@@ -37,6 +39,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
   const [ventasHoy, setVentasHoy] = useState<{ total: number; count: number }>({ total: 0, count: 0 })
+  const [toastSync, setToastSync] = useState("")
+
+  useSync((cantidad) => {
+    setToastSync(`✓ ${cantidad} venta${cantidad > 1 ? "s" : ""} sincronizada${cantidad > 1 ? "s" : ""}`)
+    setTimeout(() => setToastSync(""), 4000)
+  })
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -115,6 +123,25 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen pb-40" style={{ background: "#1B3A6B" }}>
+      <IndicadorOffline />
+
+      {/* Toast sincronización */}
+      {toastSync && (
+        <div style={{
+          position: "fixed", top: 44, left: 0, right: 0,
+          display: "flex", justifyContent: "center",
+          zIndex: 50, pointerEvents: "none",
+        }}>
+          <div style={{
+            background: "#27B173", color: "white",
+            fontSize: 13, fontWeight: 700,
+            padding: "8px 20px", borderRadius: 20,
+            fontFamily: "var(--font-nunito)",
+          }}>
+            {toastSync}
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="px-5 pt-10 pb-5 max-w-lg mx-auto">

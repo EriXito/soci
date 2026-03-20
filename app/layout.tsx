@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
+import ServiceWorkerRegistrar from "@/app/components/ServiceWorkerRegistrar";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${nunito.variable} antialiased`} style={{ fontFamily: "var(--font-nunito), sans-serif" }}>
         {children}
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );
