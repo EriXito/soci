@@ -73,12 +73,19 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
     setTimeout(() => { setEstado("idle"); setTexto(""); setTranscriptParcial("") }, 3000)
   }
 
+  const mensajeNoSoportado = () => {
+    const ua = navigator.userAgent
+    if (/iPhone|iPad|iPod/i.test(ua)) return "Abre SOCI en Safari para usar el microfono"
+    if (/Android/i.test(ua)) return "Abre SOCI con la app Google para usar el microfono"
+    return "Tu navegador no soporta el microfono"
+  }
+
   const iniciar = () => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
       if (!SpeechRecognition) {
-        setTexto("Tu navegador no soporta el microfono")
+        setTexto(mensajeNoSoportado())
         setEstado("error")
         setTimeout(() => { setEstado("idle"); setTexto("") }, 3000)
         return
