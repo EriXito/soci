@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 
 interface ProductoSimple {
   id: string
@@ -23,20 +23,12 @@ interface Props {
 type Estado = "idle" | "escuchando" | "procesando" | "listo" | "error"
 
 export default function BotonVoz({ productos, empresaId, onProductosIdentificados }: Props) {
-  const [soportaVoz, setSoportaVoz] = useState<boolean | null>(null)
   const [estado, setEstado] = useState<Estado>("idle")
   const [texto, setTexto] = useState("")
   const [transcriptParcial, setTranscriptParcial] = useState("")
   const recognitionRef = useRef<any>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resultadoRecibido = useRef(false)
-
-  useEffect(() => {
-    const soporta =
-      typeof window !== "undefined" &&
-      ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
-    setSoportaVoz(soporta)
-  }, [])
 
   const limpiarTimeout = () => {
     if (timeoutRef.current) {
@@ -70,11 +62,11 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
         onProductosIdentificados(data.items)
         setEstado("listo")
       } else {
-        setTexto("No encontré productos")
+        setTexto("No encontre productos")
         setEstado("error")
       }
     } catch {
-      setTexto("Error de conexión")
+      setTexto("Error de conexion")
       setEstado("error")
     }
 
@@ -82,64 +74,72 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
   }
 
   const iniciar = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    const recognition = new SpeechRecognition()
-    recognitionRef.current = recognition
-    recognition.lang = "es-CO"
-    recognition.continuous = false
-    recognition.interimResults = true  // resultados parciales en tiempo real
-    resultadoRecibido.current = false
-
-    recognition.onstart = () => {
-      setEstado("escuchando")
-      setTranscriptParcial("")
-      // Timeout de 10 segundos por si onend no dispara en móvil
-      timeoutRef.current = setTimeout(() => {
-        recognition.stop()
-      }, 10000)
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      let interim = ""
-      let final = ""
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const t = event.results[i][0].transcript
-        if (event.results[i].isFinal) final += t
-        else interim += t
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      if (!SpeechRecognition) {
+        setTexto("Tu navegador no soporta el microfono")
+        setEstado("error")
+        setTimeout(() => { setEstado("idle"); setTexto("") }, 3000)
+        return
       }
-      // Mostrar texto parcial en tiempo real
-      setTranscriptParcial(final || interim)
 
-      if (final) {
+      const recognition = new SpeechRecognition()
+      recognitionRef.current = recognition
+      recognition.lang = "es-CO"
+      recognition.continuous = false
+      recognition.interimResults = true
+      resultadoRecibido.current = false
+
+      recognition.onstart = () => {
+        setEstado("escuchando")
+        setTranscriptParcial("")
+        timeoutRef.current = setTimeout(() => { recognition.stop() }, 10000)
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onresult = (event: any) => {
+        let interim = ""
+        let final = ""
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const t = event.results[i][0].transcript
+          if (event.results[i].isFinal) final += t
+          else interim += t
+        }
+        setTranscriptParcial(final || interim)
+
+        if (final) {
+          resultadoRecibido.current = true
+          limpiarTimeout()
+          recognition.stop()
+          procesar(final.trim())
+        }
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onerror = (event: any) => {
         resultadoRecibido.current = true
         limpiarTimeout()
-        recognition.stop()
-        procesar(final.trim())
+        setTranscriptParcial("")
+        setTexto(event.error === "not-allowed" ? "Permiso denegado" : "Error al escuchar")
+        setEstado("error")
+        setTimeout(() => { setEstado("idle"); setTexto("") }, 3000)
       }
-    }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onerror = (event: any) => {
-      resultadoRecibido.current = true
-      limpiarTimeout()
-      setTranscriptParcial("")
-      setTexto(event.error === "not-allowed" ? "Permiso de micrófono denegado" : "Error al escuchar")
+      recognition.onend = () => {
+        limpiarTimeout()
+        if (!resultadoRecibido.current) {
+          setTranscriptParcial("")
+          setEstado("idle")
+        }
+      }
+
+      recognition.start()
+    } catch {
+      setTexto("No se pudo activar el microfono")
       setEstado("error")
       setTimeout(() => { setEstado("idle"); setTexto("") }, 3000)
     }
-
-    recognition.onend = () => {
-      limpiarTimeout()
-      // Si no hubo resultado final, volver a idle (el usuario no habló)
-      if (!resultadoRecibido.current) {
-        setTranscriptParcial("")
-        setEstado("idle")
-      }
-    }
-
-    recognition.start()
   }
 
   const btnColor = estado === "error" ? "rgba(239,68,68,0.85)"
@@ -152,16 +152,6 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
     : estado === "listo" ? (texto || "Listo")
     : (texto || "Error")
 
-  // Hidratación pendiente
-  if (soportaVoz === null) return null
-
-  // Navegador sin soporte
-  if (soportaVoz === false) return (
-    <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, textAlign: "center", marginBottom: 16 }}>
-      Tu navegador no soporta dictado por voz
-    </p>
-  )
-
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 16 }}>
       <style>{`
@@ -171,7 +161,6 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
         }
       `}</style>
 
-      {/* Botones en fila cuando está escuchando */}
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <button
           onClick={estado === "idle" ? iniciar : undefined}
@@ -195,7 +184,6 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
           {estado === "procesando" ? "⏳" : estado === "listo" ? "✓" : estado === "error" ? "✕" : "🎤"}
         </button>
 
-        {/* Botón Detener — solo visible mientras escucha */}
         {estado === "escuchando" && (
           <button
             onClick={detener}
@@ -218,7 +206,6 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
         )}
       </div>
 
-      {/* Etiqueta de estado */}
       <p style={{
         color: estado === "error" ? "#f87171" : estado === "listo" ? "#27B173" : "rgba(255,255,255,0.45)",
         fontSize: 12,
@@ -231,7 +218,6 @@ export default function BotonVoz({ productos, empresaId, onProductosIdentificado
         {label}
       </p>
 
-      {/* Transcript parcial en tiempo real */}
       {transcriptParcial && estado === "escuchando" && (
         <p style={{
           color: "rgba(255,255,255,0.75)",
